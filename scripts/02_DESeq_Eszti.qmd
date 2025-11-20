@@ -1,0 +1,56 @@
+---
+title: "Eszti"
+format: html
+---
+
+```{r}
+#| message: false
+# Load libraries
+library("tidyverse")
+library("DESeq2")
+```
+
+# Standard Differential Gene Expression
+
+```{r}
+# Check if re-arrangement is needed
+all(GSE67333_metadata$sample_id == colnames(GSE67333_transcript))
+```
+
+Corrected cofounder: Gender
+
+```{r}
+# Construct a DESeqDataSet
+dds <- DESeqDataSetFromMatrix(countData = GSE67333_transcript,
+                              colData = GSE67333_metadata,
+                              design = ~ conditions + gender)
+dds
+```
+
+## Single PCA plot
+
+```{r}
+plotPCA(rlog(dds), intgroup=c("conditions", "gender"))
+```
+
+## **Differential gene expression analysis**
+
+```{r}
+dds <- DESeq(dds)
+```
+
+```{r}
+res <- results(dds,
+               contrast=c("conditions", "healthy", "diseased"))
+res
+summary(res)
+```
+
+## Identify significant genes
+
+```{r}
+n_sig <- sum(res$padj < 0.05, na.rm = TRUE)
+n_sig
+
+signif <- rownames(res)[!is.na(res$padj) & res$padj < 0.05]
+```
