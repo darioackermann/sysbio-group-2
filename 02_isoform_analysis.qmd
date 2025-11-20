@@ -1,0 +1,54 @@
+---
+title: "02_isoform_analysis"
+format: html
+---
+
+```{r}
+#| message: false
+#| warning: false
+library(DEXSeq)
+library(fgsea)
+library(msigdbr)
+library(tidyverse)
+```
+
+```{r}
+library(DEXSeq)
+
+# Ensure metadata rows are in same order as count columns
+GSE67333_metadata <- GSE67333_metadata[
+    match(colnames(GSE67333_isoform), GSE67333_metadata$sample_id),
+]
+
+all(colnames(GSE67333_isoform) == GSE67333_metadata$sample_id)
+
+```
+
+```{r}
+head(rownames(GSE67333_isoform))
+str(rownames(GSE67333_isoform))
+
+feature_ids <- as.character(rownames(GSE67333_isoform))
+```
+
+```{r}
+
+# GSE67333_metadata$gender <- factor(GSE67333_metadata$condition)
+
+isoInfo <- isoInfo[match(rownames(GSE67333_isoform), isoInfo$transcript_id), ]
+
+dxd <- DEXSeqDataSet(
+    countData = GSE67333_isoform,
+    sampleData = GSE67333_metadata,
+    design = ~ sample + exon + conditions:exon + gender:exon,
+    featureID = isoInfo$transcript_id,
+    groupID = isoInfo$gene_id
+)
+
+```
+
+```{r}
+dxd <- estimateSizeFactors(dxd)
+dxd <- estimateDispersions(dxd)
+
+```
