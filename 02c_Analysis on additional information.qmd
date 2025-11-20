@@ -15,6 +15,7 @@ load(file = "/home/projects/exam_2025_22140_22150/group_2/data/additional_data.R
 ## load libraries
 
 ```{r}
+#| message: false
 library(tidyverse)
 library(DESeq2)
 library(DEXSeq)
@@ -28,15 +29,12 @@ library(DEXSeq)
 additional_studies
 ```
 
-```{r}
-GSE95587_transcript
-GSE95587_metadata
-```
+## Study 1 in list
 
 ```{r}
 all(colnames(GSE95587_transcript) %in% GSE95587_metadata$sample_id)
 count_data <- GSE95587_transcript |> 
-  select(all_of(GSE95587_metadata$sample_id))
+  dplyr::select(all_of(GSE95587_metadata$sample_id))
 
 dds <- DESeqDataSetFromMatrix(countData = count_data, 
                               colData = GSE95587_metadata,
@@ -44,4 +42,38 @@ dds <- DESeqDataSetFromMatrix(countData = count_data,
 
 difEx <- DESeq(dds)
 res <- results(difEx, contrast=c("conditions","Alzheimers","control"))
+
+```
+
+```{r}
+colnames(GSE95587_isoform) %in% GSE95587_metadata$sample_id
+
+#extract only samples where there is metadata
+iso_count_data <-  GSE95587_isoform |> 
+  as.data.frame() |> 
+  dplyr::select(all_of(GSE95587_metadata$sample_id)) |> 
+  as.matrix()
+
+#
+isoInfo <- read_rds(
+  paste0(
+  '/home/projects/22140/exam_data/',
+  'Homo_sapiens.GRCh38.107.chr_patch_hapl_scaff_tx_info.Rds'
+  )
+)
+
+isoInfo <- isoInfo[match(rownames(GSE95587_isoform),isoInfo$transcript_id),]
+
+#make the isoform dataset
+dxdSubset <- DEXSeqDataSet(
+  countData = iso_count_data, 
+  sampleData = GSE95587_metadata,
+  design= ~ sample_id + conditions + gender +Age + exon + conditions:exon +gender:exon, 
+  featureID = isoInfo$transcript_id, #list of transcript id
+  groupID = isoInfo$gene_id #list of gene id linked to transcript id
+)
+
+dexRes <- DEXSeq(dxdSubset, 
+                 reducedModel = ~ sample_id + conditions + gender +Age + exon +gender:exon)
+
 ```
