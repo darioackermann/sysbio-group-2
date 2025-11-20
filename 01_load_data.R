@@ -17,7 +17,7 @@ GSE67333_metadata <- read_csv("/home/projects/exam_2025_22140_22150/group_2/data
 save(GSE173955_isoform,GSE173955_transcript,GSE173955_metadata,GSE67333_isoform,GSE67333_transcript,GSE67333_metadata, file = "/home/projects/exam_2025_22140_22150/group_2/data/hippocampus_data.Rdata")
 
 # load additional datasets
-additional_studies <- c("GSE95587","GSE228458,GSE228459")
+additional_studies <- c("GSE95587","GSE228458,GSE228459","GSE53697,GSE53699")
 data_objects <- c("additional_studies") 
 
 for (study in additional_studies){
