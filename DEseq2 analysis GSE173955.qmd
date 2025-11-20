@@ -1,0 +1,67 @@
+---
+title: "DEseq2"
+format: html
+---
+
+# setup
+
+```{r}
+#| label: setup 
+#| include: FALSE
+
+library(DESeq2)
+library(BiocGenerics)
+
+load(file = "/home/projects/exam_2025_22140_22150/group_2/data/hippocampus_data.Rdata")
+
+```
+
+```{r}
+#| label: setup DEseq2 object
+#two missing metadata samples
+samples_meta <- GSE173955_metadata$sample_id
+extra_cols <- setdiff(colnames(GSE173955_transcript), samples_meta)
+GSE173955_transcript <- GSE173955_transcript[, !(colnames(GSE173955_transcript) %in% extra_cols)]
+
+#sanity check
+all(colnames(GSE173955_transcript) == GSE173955_metadata$sample_id)
+
+# factorize condition lables 
+GSE173955_metadata$conditions <- factor(GSE173955_metadata$conditions)
+GSE173955_metadata$gender <- factor(GSE173955_metadata$gender)
+
+#create DEseq2 object
+dds <- DESeqDataSetFromMatrix(
+  countData = GSE173955_transcript,
+  colData = GSE173955_metadata,
+  design = ~ gender + conditions
+)
+
+#print DEseq2 object
+dds
+```
+
+```{r}
+#| label: DEseq fitting
+
+#fit model 
+dds_model <- DESeq(dds)
+```
+
+```{r}
+resultsNames(dds_model)
+
+results <- results(dds_model, contrast = c("conditions","healthy", "diseased"))
+
+head(results)
+summary(results)
+
+significant_results <- results[which(results$padj < 0.05 & !is.na(results$padj)), ]
+significant_results <- significant_results[order(significant_results$padj), ]
+
+head(significant_results)
+nrow(significant_results)
+
+res_df <- as.data.frame(significant_results)
+write.csv(res_df, file = "DESeq2_GSE173955.csv")
+```
