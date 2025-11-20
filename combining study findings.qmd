@@ -1,0 +1,18 @@
+---
+title: "combining study findings"
+format: html
+---
+
+# combinding study findings
+
+this scripts will take the p-values from differential expression and differential isoform expression
+
+## combinding p-values for same studies
+
+### combinding DE
+
+for studies performing the same test on the same tissue, we will combine the p-values using the edgingtons method.
+
+```{r}
+
+```
