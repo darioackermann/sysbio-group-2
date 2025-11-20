@@ -1,0 +1,47 @@
+---
+title: "Analysis on additional information"
+format: html
+---
+
+# Analysis on additional information
+
+## load data
+
+```{r}
+#additional data
+load(file = "/home/projects/exam_2025_22140_22150/group_2/data/additional_data.Rdata")
+```
+
+## load libraries
+
+```{r}
+library(tidyverse)
+library(DESeq2)
+library(DEXSeq)
+```
+
+## analyse
+
+### Differential expression
+
+```{r}
+additional_studies
+```
+
+```{r}
+GSE95587_transcript
+GSE95587_metadata
+```
+
+```{r}
+all(colnames(GSE95587_transcript) %in% GSE95587_metadata$sample_id)
+count_data <- GSE95587_transcript |> 
+  select(all_of(GSE95587_metadata$sample_id))
+
+dds <- DESeqDataSetFromMatrix(countData = count_data, 
+                              colData = GSE95587_metadata,
+                              design = ~ conditions + Age + gender)
+
+difEx <- DESeq(dds)
+res <- results(difEx, contrast=c("conditions","Alzheimers","control"))
+```

@@ -1,0 +1,36 @@
+---
+title: "combining study findings"
+format: html
+---
+
+# combinding study findings
+
+this scripts will take the p-values from differential expression and differential isoform expression
+
+for joining p-values of the same tissue and expression we will use edgingtons method. it will be performed by:
+
+`metap::sump(c(result1,results2)$p)`
+
+For studies of different tissues or methods, we will use Fishers method, which prioritizes the smallest p-value, as we in the end want genes that are significant for any of the tested properties (tissue, expression, isoform ...)
+
+`p_join_fisher = metap::sumlog(c(pvalue_deseq2,pvalue_dexseq))$p )`
+
+## load DEseq2 results and DEXseq results
+
+```{r}
+#load()
+```
+
+## combinding p-values for same studies
+
+### combinding DE
+
+for studies performing the same test on the same tissue, we will combine the p-values using the edgingtons method.
+
+```{r}
+
+# full_join datasets
+
+# perform p-value adjustment
+
+```

@@ -1,0 +1,16 @@
+---
+title: "00_full_analysis"
+format: html
+---
+
+## 
+
+# here is the full workflow
+
+```{r}
+source("01_load_data.R")
+#source() deseq
+# dexseq
+#p-value adjust
+#virtual pulldown
+```
