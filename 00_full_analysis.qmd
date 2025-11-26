@@ -3,8 +3,6 @@ title: "00_full_analysis"
 format: html
 ---
 
-## 
-
 # here is the full workflow
 
 ```{r}
