@@ -13,3 +13,6 @@ load(file = "/home/projects/exam_2025_22140_22150/group_2/data/GSE67333_isoform_
 #pvalues
 #deseq only seed genes
 load(file ="/home/projects/exam_2025_22140_22150/group_2/data/dseq_signif_genes.Rdata")
+
+#join deseq and isoform p-values
+load(file = "/home/projects/exam_2025_22140_22150/group_2/data/joined_p_values.Rdata")

@@ -19,19 +19,28 @@ For studies of different tissues or methods, we will use Fishers method, which p
 
 ```{r}
 
-
-
-
 #load deseq
 load("/home/projects/exam_2025_22140_22150/group_2/data/GSE173955_deseq_result.Rdata")
 load("/home/projects/exam_2025_22140_22150/group_2/data/GSE67333_deseq_result.Rdata")
 
-#load dexseq data
-load("/home/projects/exam_2025_22140_22150/group_2/data/GSE67333_DXD.Rdata")
-GSE67333_DXD
+# GSE67333 Isoform Results Data
+load(file = "/home/projects/exam_2025_22140_22150/group_2/data/GSE67333_isoform_results.Rdata")
+load(file = "/home/projects/exam_2025_22140_22150/group_2/data/GSE173955_isoform_results.Rdata")
+
+##additional data
+#deseq
+load("/home/projects/exam_2025_22140_22150/group_2/data/GSE228458,GSE228459_deseq_result.Rdata")
+load("/home/projects/exam_2025_22140_22150/group_2/data/GSE95587_deseq_result.Rdata")
+load("/home/projects/exam_2025_22140_22150/group_2/data/GSE53697,GSE53699_deseq_result.Rdata")
+
+
 ```
 
-## combinding p-values for same studies
+```{r}
+library(purrr)
+```
+
+## combinding p-values for same studies and same tissue
 
 ### combinding DE
 
@@ -50,15 +59,18 @@ deseq_pvalues <- inner_join(
     dplyr::select(pvalue) |> 
     rownames_to_column(var = "gene_ID"),
   by = c("gene_ID" = "gene_ID")) 
-  
 
 
 # perform p-value join using edgingtons method
-deseq_signif_genes <- deseq_pvalues |> 
+pjoin_deseq_hipocampus <- deseq_pvalues |> 
   na.omit() |> 
   rowwise() |> 
   mutate(joined_pvalue = metap::sump(c(pvalue.x,pvalue.y))$p ) |> 
   ungroup() |> 
+  dplyr::select(gene_ID,joined_pvalue)
+
+#save seed genes for analysis
+deseq_signif_genes <- pjoin_deseq_hipocampus|> 
   mutate(p_adj_deseq = p.adjust(joined_pvalue,method = "fdr")) |> 
   filter(p_adj_deseq < 0.05) |> 
   pull(gene_ID)
@@ -67,8 +79,154 @@ save(deseq_signif_genes,
 
 ```
 
-## combining p-values for different studies
+### combining differential isoform expression
+
+```{r}
+dexseq_pvalues <- inner_join(
+  GSE67333_isoform_results |> 
+  as.data.frame() |> 
+  na.omit() |>  
+  dplyr::select(pvalue) |> 
+  rownames_to_column(var = "gene_ID"), 
+  GSE173955_isoform_results |> 
+  as.data.frame() |> 
+  na.omit() |>  
+  dplyr::select(pvalue) |> 
+  rownames_to_column(var = "gene_ID"),
+  by = c("gene_ID" = "gene_ID")) 
+
+pjoin_dexseq_hipocampus <- dexseq_pvalues |> 
+  na.omit() |> 
+  rowwise() |> 
+  mutate(joined_pvalue = metap::sump(c(pvalue.x,pvalue.y))$p ) |> 
+  ungroup() |> 
+  dplyr::select(gene_ID,joined_pvalue)
+
+
+
+
+```
+
+## combining p-values for different studies and methods within hipocampus
 
 ```{r}
 
+#join all pvalues into 1 dataframe
+all_p_values <- full_join(
+  pjoin_deseq_hipocampus,
+  pjoin_dexseq_hipocampus
+  ) 
+
+
+full_joined_p_values <- all_p_values |> 
+  rowwise() |> #for each row
+  mutate(full_joined_pvalue = {
+    #select all p-value columns
+    pvalues <- c_across(-gene_ID)
+    # remove pvalues that are NA to avoid errors
+    pvalues <- pvalues[!is.na(pvalues)]
+    #if there is still some values left, calculate sumlog:
+    if (length(pvalues) > 1) metap::sumlog( pvalues )$p else ifelse(length(pvalues) == 1, pvalues[1],NA)
+  })|> 
+  ungroup() |> 
+  dplyr::select(gene_ID,full_joined_pvalue)
+  
+  
+
+
+```
+
+# additional data
+
+# combining p-values from different tissues using fishers method
+
+```{r}
+#join all pvalues into 1 dataframe
+all_p_values_additional <- 
+  list(
+      pjoin_deseq_hipocampus,
+      
+      GSE67333_isoform_results |> 
+        as.data.frame() |> 
+        na.omit()|> 
+        dplyr::select(pvalue) |> 
+        rownames_to_column(var = "gene_ID"),
+      
+      `GSE228458,GSE228459_results` |> 
+        as.data.frame() |> 
+        na.omit()|> 
+        dplyr::select(pvalue) |> 
+        rownames_to_column(var = "gene_ID"),
+      
+      `GSE53697,GSE53699_results`|> 
+        as.data.frame() |> 
+        na.omit()|> 
+        dplyr::select(pvalue) |> 
+        rownames_to_column(var = "gene_ID"),
+      
+      GSE95587_results|> 
+        as.data.frame() |> 
+        na.omit()|> 
+        dplyr::select(pvalue) |> 
+        rownames_to_column(var = "gene_ID")
+  ) |> 
+  purrr::reduce(full_join, by = "gene_ID")
+
+
+
+
+full_joined_p_values_additional <- all_p_values_additional |> 
+  rowwise() |> #for each row
+  mutate(full_joined_pvalue = {
+    #select all p-value columns
+    pvalues <- c_across(-gene_ID)
+    # remove pvalues that are NA to avoid errors
+    pvalues <- pvalues[!is.na(pvalues)]
+    #if there is still some values left, calculate sumlog:
+    if (
+      length(pvalues) > 1) metap::sumlog( pvalues )$p 
+    else ifelse(length(pvalues) == 1, 
+                pvalues[1],
+                NA)
+  })|> 
+  ungroup() |> 
+  dplyr::select(gene_ID,full_joined_pvalue) 
+  
+  
+  
+
+full_joined_p_values_additional |> 
+  mutate(p_adj = p.adjust(full_joined_pvalue, method = "fdr")) |> 
+  filter(p_adj < 0.05)
+```
+
+# combining p-values from different tissues using edgingtons method
+
+```{r}
+#join all pvalues into 1 dataframe
+
+
+full_joined_p_values_additional_edgington <- all_p_values_additional |> 
+  rowwise() |> #for each row
+  mutate(full_joined_pvalue = {
+    #select all p-value columns
+    pvalues <- c_across(-gene_ID)
+    # remove pvalues that are NA to avoid errors
+    pvalues <- pvalues[!is.na(pvalues)]
+    #if there is still some values left, calculate sumlog:
+    if (
+      length(pvalues) > 1) metap::sump( pvalues )$p 
+    else ifelse(length(pvalues) == 1, 
+                pvalues[1],
+                NA)
+  })|> 
+  ungroup() |> 
+  dplyr::select(gene_ID,full_joined_pvalue) 
+  
+  
+  
+
+full_joined_p_values_additional |> 
+  mutate(p_adj = p.adjust(full_joined_pvalue, method = "fdr")) |> 
+  filter(p_adj < 0.05)
 ```
