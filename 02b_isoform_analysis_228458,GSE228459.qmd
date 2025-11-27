@@ -1,0 +1,123 @@
+---
+title: "02_isoform_analysis"
+format: html
+---
+
+```{r}
+#| message: false
+#| warning: false
+library(DEXSeq)
+library(fgsea)
+library(msigdbr)
+library(tidyverse)
+library(tidyr)
+```
+
+```{r}
+library(DEXSeq)
+isoforms <- `GSE228458,GSE228459_isoform`
+meta_data <- `GSE228458,GSE228459_metadata`
+
+# keep only isoforms with >=10 counts in 0.5 of samples
+min_samples <- ncol(isoforms) * 0.5
+
+# Filter isoforms that have >= 10 counts in at least 50% of samples
+filtered_isoforms <- isoforms[
+  rowSums(isoforms >= 10) >= min_samples,
+]
+
+# Print the dimensions to see how many isoforms were kept
+cat("Original dimensions:", dim(isoforms), "\n")
+cat("Filtered dimensions:", dim(filtered_isoforms), "\n")
+cat("Percentage of isoforms retained:", 
+    round(nrow(filtered_isoforms)/nrow(isoforms)*100, 2), "%\n")
+
+# Ensure metadata rows are in same order as count columns
+meta_data <- meta_data[
+    match(colnames(isoforms), meta_data$sample_id),
+]
+
+all(colnames(isoforms) == meta_data$sample_id)
+
+```
+
+```{r}
+head(rownames(isoforms))
+str(rownames(isoforms))
+
+
+feature_ids <- as.character(rownames(isoforms))
+```
+
+```{r}
+
+
+
+isoInfo <- read_rds(
+  paste0(
+  '/home/projects/22140/exam_data/',
+  'Homo_sapiens.GRCh38.107.chr_patch_hapl_scaff_tx_info.Rds'
+  )
+)
+
+isoInfo <- isoInfo[match(rownames(filtered_isoforms), isoInfo$transcript_id), ]
+
+# Get the valid sample names from metadata
+valid_samples <- meta_data$sample_id
+
+# Keep only columns whose names appear in metadata
+filtered_isoforms <- filtered_isoforms[, colnames(filtered_isoforms) %in% valid_samples]
+meta_data$gender <- factor(meta_data$conditions)
+
+meta_data = na.omit(meta_data)
+
+
+dxd <- DEXSeqDataSet(
+    countData = filtered_isoforms,
+    sampleData = meta_data,
+    design = ~ sample + exon + conditions:exon + gender:exon,
+    featureID = isoInfo$transcript_id,
+    groupID = isoInfo$gene_id
+)
+
+```
+
+```{r}
+dxd <- estimateSizeFactors(dxd)
+dxd <- estimateDispersions(dxd)
+
+```
+
+```{r}
+library(DEXSeq)
+
+dxd <- testForDEU(dxd)
+dxd <- estimateExonFoldChanges(dxd, fitExpToVar = "conditions")
+
+res <- DEXSeqResults(dxd)
+
+`GSE228458,GSE228459_isoform_results` = res
+
+save(GSE228458,GSE228459_isoform_results, 
+     file = "/home/projects/exam_2025_22140_22150/group_2/data/GSE228458,GSE228459_isoform_results.Rdata")
+
+```
+
+```{r}
+alpha <- 0.05
+# Significant isoforms (rows)
+sig_iso <- res[!is.na(res$padj) & res$padj < alpha, ]
+n_sig_isoforms <- nrow(sig_iso)
+n_sig_isoforms
+
+n_sig_genes <- length(unique(sig_iso$groupID))
+n_sig_genes
+```
+
+```{r}
+dexseq_df <- as.data.frame(res)
+dexseq_df <- dexseq_df[order(dexseq_df$padj), ]
+top5_genes <- dexseq_df$groupID[!is.na(dexseq_df$padj)][1:6]
+
+top5_genes
+```
