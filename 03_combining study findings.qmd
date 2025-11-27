@@ -18,7 +18,9 @@ For studies of different tissues or methods, we will use Fishers method, which p
 ## load DEseq2 results and DEXseq results
 
 ```{r}
-#load()
+load("/home/projects/exam_2025_22140_22150/group_2/data/GSE67333_DXD.Rdata")
+load("/home/projects/exam_2025_22140_22150/group_2/data/GSE173955_result_objects.Rdata")
+
 ```
 
 ## combinding p-values for same studies
