@@ -10,10 +10,16 @@ library(DEXSeq)
 library(fgsea)
 library(msigdbr)
 library(tidyverse)
+
+
+
 ```
 
 ```{r}
 library(DEXSeq)
+
+#load data
+GSE67333_metadata <- read_csv("/home/projects/exam_2025_22140_22150/group_2/data/GSE67333_metadata.csv")
 
 # Ensure metadata rows are in same order as count columns
 GSE67333_metadata <- GSE67333_metadata[
