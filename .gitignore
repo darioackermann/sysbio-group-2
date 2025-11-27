@@ -2,3 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
+
+
+#Images
+.04_cluster_louvain_plot_resolution_02.png
+.04_node_type_plot_cutoff_05.png
+.04_node_type_plot_cutoff_02.png
