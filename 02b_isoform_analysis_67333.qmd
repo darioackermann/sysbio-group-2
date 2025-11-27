@@ -1,5 +1,5 @@
 ---
-title: "02_isoform_analysis"
+title: "02b_isoform_analysis_67333"
 format: html
 ---
 
@@ -35,6 +35,12 @@ feature_ids <- as.character(rownames(GSE67333_isoform))
 
 # GSE67333_metadata$gender <- factor(GSE67333_metadata$condition)
 
+isoInfo <- read_rds(
+  paste0(
+  '/home/projects/22140/exam_data/',
+  'Homo_sapiens.GRCh38.107.chr_patch_hapl_scaff_tx_info.Rds'
+  )
+)
 isoInfo <- isoInfo[match(rownames(GSE67333_isoform), isoInfo$transcript_id), ]
 
 dxd <- DEXSeqDataSet(
@@ -55,12 +61,16 @@ dxd <- estimateDispersions(dxd)
 
 ```{r}
 
-# dxd <- testForDEU(dxd)
+dxd <- testForDEU(dxd)
 dxd <- estimateExonFoldChanges(dxd, fitExpToVar = "conditions")
 
 
 res <- DEXSeqResults(dxd)
-head(res)
+
+GSE67333_isoform_results = res
+
+save(GSE67333_isoform_results, 
+     file = "/home/projects/exam_2025_22140_22150/group_2/data/GSE67333_isoform_results.Rdata")
 ```
 
 ```{r}
