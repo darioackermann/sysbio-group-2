@@ -16,6 +16,10 @@ load(file = "/home/projects/exam_2025_22140_22150/group_2/data/additional_data.R
 
 ## Decide on which dataset to work on!
 
+Also, do not forget to change contrast names when generating results!
+
+DELETE gender for GSE53697,GSE53699!
+
 ```{r}
 # Change study id here
 
@@ -23,10 +27,10 @@ load(file = "/home/projects/exam_2025_22140_22150/group_2/data/additional_data.R
 #   Primary datasets: GSE173955; GSE67333  
 #   Additional datasets: GSE228458,GSE228459; GSE53697,GSE53699; GSE95587
 
-study_id <- 'GSE228458,GSE228459'
-metadata <- `GSE228458,GSE228459_metadata`
-isoform <- `GSE228458,GSE228459_isoform`
-transcript <- `GSE228458,GSE228459_transcript`
+study_id <- 'GSE95587'
+metadata <- `GSE95587_metadata`
+isoform <- `GSE95587_isoform`
+transcript <- `GSE95587_transcript`
 ```
 
 # Standard Differential Gene Expression
@@ -68,7 +72,7 @@ dds <- DESeqDataSetFromMatrix(
 ## Single PCA plot
 
 ```{r}
-pca_plot <- plotPCA(rlog(dds), 
+pca_plot <- plotPCA(vst(dds), 
                     intgroup=c("conditions",  
                                "gender"))
 
@@ -91,12 +95,18 @@ dds_model <-
   DESeq(dds)
 ```
 
+### Calculating results
+
 ```{r}
+# For GSE173955 and GSE67333 conditions are: "healthy" and "diseased"
+# For GSE228458,GSE228459:                   "healthy" and "AD"
+# For GSE95587 and GSE53697,GSE53699:        "control" and "Alzheimers"
+
 results <- 
   results(dds_model,   
           contrast=c("conditions",    
-                     "healthy",                  
-                     "diseased"))  
+                     "control",                  
+                     "Alzheimers"))  
 
 # Visualise results 
 head(results) 
