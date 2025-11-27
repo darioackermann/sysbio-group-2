@@ -1,0 +1,140 @@
+---
+title: "DEseq2" 
+format: html 
+editor: visual
+---
+
+```{r}
+#| message: false  
+
+# Load libraries library("tidyverse") 
+library("DESeq2")  
+
+load(file = "/home/projects/exam_2025_22140_22150/group_2/data/hippocampus_data.Rdata")
+load(file = "/home/projects/exam_2025_22140_22150/group_2/data/additional_data.Rdata")
+```
+
+## Decide on which dataset to work on!
+
+```{r}
+# Change study id here
+
+# You can choose from:
+#   Primary datasets: GSE173955; GSE67333  
+#   Additional datasets: GSE228458,GSE228459; GSE53697,GSE53699; GSE95587
+
+study_id <- 'GSE228458,GSE228459'
+metadata <- `GSE228458,GSE228459_metadata`
+isoform <- `GSE228458,GSE228459_isoform`
+transcript <- `GSE228458,GSE228459_transcript`
+```
+
+# Standard Differential Gene Expression
+
+```{r}
+# Synchronize the count matrix with the metadata 
+samples_metadata <-   
+  metadata$sample_id 
+missing_cols <-   
+  setdiff(colnames(transcript),           
+          samples_metadata) 
+transcript <-    
+  transcript[, !(colnames(transcript) %in% missing_cols)] 
+```
+
+```{r}
+# Check if re-arrangement is needed 
+all(metadata$sample_id == colnames(transcript))
+```
+
+```{r}
+# Factorize conditions and gender 
+metadata$conditions <-    
+  factor(metadata$conditions) 
+metadata$gender <-   
+  factor(metadata$gender)  
+```
+
+Corrected cofounder: Gender
+
+```{r}
+# Construct DESeqDataSets and print the new objects 
+dds <- DESeqDataSetFromMatrix(   
+  countData = transcript,  
+  colData = metadata,   
+  design = ~ conditions + gender) 
+```
+
+## Single PCA plot
+
+```{r}
+pca_plot <- plotPCA(rlog(dds), 
+                    intgroup=c("conditions",  
+                               "gender"))
+
+ggsave(
+  filename = paste0("/home/projects/exam_2025_22140_22150/group_2/plots/",
+                    study_id, 
+                    "_PCA_plot.png"),
+  plot = pca_plot,
+  width = 7,
+  height = 5,
+  dpi = 300
+)
+```
+
+## **Differential gene expression analysis**
+
+```{r}
+# DESeq fitting 
+dds_model <-   
+  DESeq(dds)
+```
+
+```{r}
+results <- 
+  results(dds_model,   
+          contrast=c("conditions",    
+                     "healthy",                  
+                     "diseased"))  
+
+# Visualise results 
+head(results) 
+summary(results)
+```
+
+## Identify significant genes
+
+```{r}
+# Filter: keep only significant padj values
+signif_results <-  
+  results[!is.na(results$padj)      
+                    & results$padj < 0.05, ]  
+
+# Sort by adjusted p-value 
+signif_results <-   
+  signif_results[order(signif_results$padj), ]
+
+# Extract gene IDs 
+signif_genes <-  
+  rownames(signif_results)  
+
+# Count number of significant genes 
+n_signif <-  
+  nrow(signif_results) 
+```
+
+## Save results
+
+```{r}
+table1 <- paste0(study_id, "_signif_results")
+table2 <- paste0(study_id, "_results")
+
+assign(table1, signif_results)
+assign(table2, results)
+
+save(list = c(table1, table2),
+     file = paste0("/home/projects/exam_2025_22140_22150/group_2/data/",
+                   study_id, 
+                   "_deseq_result.Rdata"))
+```
