@@ -13,6 +13,7 @@ library(ggraph)
 
 ```{r}
 load(file='/home/projects/22140/exercise4.Rdata')
+load(file ="/home/projects/exam_2025_22140_22150/group_2/data/dseq_signif_genes.Rdata")
 
 ```
 
@@ -35,9 +36,7 @@ library(biomaRt)
 
 ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
 
-
-
-ensembl_list <- c("ENSG00000125538", "ENSG00000125845", "ENSG00000139618")  # EXAMPLE change this 
+ensembl_list <- c(deseq_signif_genes)  # EXAMPLE change this 
 
 #list create a matrix matching "ensembl_gene_id" to "hgnc_symbol"
 mapping <- getBM(
@@ -49,8 +48,9 @@ mapping <- getBM(
 
 gene_symbols <- mapping$hgnc_symbol
 
-gene_symbols
+seeds <- gene_symbols
 
+length(seeds)
 ```
 
 ## Sorting InWeb based on confidence score
@@ -147,14 +147,18 @@ cuts <- 0.2
 filtered <- filter_virtual_pulldown(sub_group, g, cutoff = cuts)
 #Stores the subgraph from the function to the global memory
 
+length(filtered)
+
 is_seed <- V(filtered)$name %in% seeds
 
 V(filtered)$node_type <- ifelse(is_seed, "seed", "neighbor")
 
-ggraph(filtered, layout = 'fr') + 
+p1 <- ggraph(filtered, layout = 'kk') + 
   geom_edge_link(width = 0.2) + 
   geom_node_point(aes(color = node_type)) +
   theme_void()
+
+ggsave("04_node_type_plot_cutoff_02.png", plot = p1, width = 18, height = 14, dpi = 300)
 
 ```
 
@@ -163,15 +167,16 @@ ggraph(filtered, layout = 'fr') +
 ```{r}
 #Exercise used resolution of 0.4, but a lower value concentrate the nodes to fewer clusters.
 
-cl <- cluster_louvain(graph = filtered, weights = NULL, resolution = 0.4)
+cl <- cluster_louvain(graph = filtered, weights = NULL, resolution = 0.2)
 
 V(filtered)$cluster <- factor(membership(cl))
 
-ggraph(filtered,layout='fr') + 
-  geom_edge_link(width = 0.2) + 
+p2 <- ggraph(filtered,layout='kk') + 
+  geom_edge_link(width = 0.1) + 
   geom_node_point(aes(color = cluster)) +
   theme_void()
 
+ggsave("04_cluster_louvain_plot_resolution_02.png", plot = p2, width = 14, height = 14, dpi = 300)
 
 ```
 
@@ -180,7 +185,7 @@ n_clusters <- sort(table(V(filtered)$cluster), decreasing = TRUE)
 n_clusters
 ```
 
-This is the end of virtual pulldown. Now comes some analysis of the virtual pull down such as determining biological function of clusters and determining the most central gene.
+This is the end of virtual pulldown. Now comes some analysis of the virtual pull down such as determining biological function of clusters and determining the most central genes of each cluster.
 
 ## Biological function of clusters
 
@@ -203,10 +208,6 @@ This is the end of virtual pulldown. Now comes some analysis of the virtual pull
 ## Gene-set overrepressentation analysis using fora()
 
 ```{r}
-cluster_count <- length(unique(V(filtered)$cluster))
-
-cluster_count
-
 Top10_biological_function <- function(cluster_number) {
   
   # Extract genes in this cluster
@@ -221,11 +222,14 @@ Top10_biological_function <- function(cluster_number) {
   head(BP_gsea, 10)
 }
 
+cluster_count <- length(unique(V(filtered)$cluster))
+
+cluster_count
 
 ```
 
 ```{r}
-Top10_biological_function(1) #cluster number 1 
+Top10_biological_function() #cluster number 
 ```
 
 **Most central gene in each of the clusters**
@@ -250,6 +254,6 @@ Most_central_gene_in_cluster <- function(cluster_number) {
 }
 
 # Example usage
-Most_central_gene_in_cluster(4)
+Most_central_gene_in_cluster(2)
 
 ```
