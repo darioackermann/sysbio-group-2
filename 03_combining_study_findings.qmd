@@ -18,9 +18,17 @@ For studies of different tissues or methods, we will use Fishers method, which p
 ## load DEseq2 results and DEXseq results
 
 ```{r}
-load("/home/projects/exam_2025_22140_22150/group_2/data/GSE67333_DXD.Rdata")
-load("/home/projects/exam_2025_22140_22150/group_2/data/GSE173955_result_objects.Rdata")
 
+
+
+
+#load deseq
+load("/home/projects/exam_2025_22140_22150/group_2/data/GSE173955_deseq_result.Rdata")
+load("/home/projects/exam_2025_22140_22150/group_2/data/GSE67333_deseq_result.Rdata")
+
+#load dexseq data
+load("/home/projects/exam_2025_22140_22150/group_2/data/GSE67333_DXD.Rdata")
+GSE67333_DXD
 ```
 
 ## combinding p-values for same studies
@@ -30,9 +38,37 @@ load("/home/projects/exam_2025_22140_22150/group_2/data/GSE173955_result_objects
 for studies performing the same test on the same tissue, we will combine the p-values using the edgingtons method.
 
 ```{r}
-
+library(tidyverse)
 # full_join datasets
+deseq_pvalues <- inner_join(
+  GSE173955_results |> 
+  as.data.frame() |> 
+    dplyr::select(pvalue) |> 
+    rownames_to_column(var = "gene_ID"), 
+  GSE67333_results |> 
+  as.data.frame() |> 
+    dplyr::select(pvalue) |> 
+    rownames_to_column(var = "gene_ID"),
+  by = c("gene_ID" = "gene_ID")) 
+  
 
-# perform p-value adjustment
+
+# perform p-value join using edgingtons method
+deseq_signif_genes <- deseq_pvalues |> 
+  na.omit() |> 
+  rowwise() |> 
+  mutate(joined_pvalue = metap::sump(c(pvalue.x,pvalue.y))$p ) |> 
+  ungroup() |> 
+  mutate(p_adj_deseq = p.adjust(joined_pvalue,method = "fdr")) |> 
+  filter(p_adj_deseq < 0.05) |> 
+  pull(gene_ID)
+save(deseq_signif_genes,
+     file = "/home/projects/exam_2025_22140_22150/group_2/data/dseq_signif_genes.Rdata")
+
+```
+
+## combining p-values for different studies
+
+```{r}
 
 ```
