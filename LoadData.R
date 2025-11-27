@@ -7,6 +7,8 @@ load(file = "/home/projects/exam_2025_22140_22150/group_2/data/additional_data.R
 # GSE173955 results data 
 load(file ="/home/projects/exam_2025_22140_22150/group_2/data/GSE173955_result_objects.Rdata")
 
+# GSE67333 Isoform Results Data
+load(file = "/home/projects/exam_2025_22140_22150/group_2/data/GSE67333_isoform_results.Rdata")
 
 #pvalues
 #deseq only seed genes
