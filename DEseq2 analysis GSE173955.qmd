@@ -62,6 +62,14 @@ significant_results <- significant_results[order(significant_results$padj), ]
 head(significant_results)
 nrow(significant_results)
 
-res_df <- as.data.frame(significant_results)
-write.csv(res_df, file = "DESeq2_GSE173955.csv")
+significant_results_df <- as.data.frame(significant_results)
+#write.csv(res_df, file = "DESeq2_GSE173955.csv")
+```
+
+```{r}
+GSE173955_significant_results <- significant_results
+GSE173955_results <- results
+save(GSE173955_significant_results, 
+     GSE173955_results,
+     file = "/home/projects/exam_2025_22140_22150/group_2/data/GSE173955_result_objects.Rdata")
 ```

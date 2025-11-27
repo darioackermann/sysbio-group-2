@@ -1,0 +1,168 @@
+---
+title: "DEseq2"
+format: html
+editor: visual
+---
+
+```{r}
+#| message: false
+
+# Load libraries
+library("tidyverse")
+library("DESeq2")
+
+load(file = "/home/projects/exam_2025_22140_22150/group_2/data/hippocampus_data.Rdata")
+```
+
+# Standard Differential Gene Expression
+
+```{r}
+# Synchronize the count matrix with the metadata
+samples_metadata <-
+  GSE173955_metadata$sample_id
+missing_cols <-
+  setdiff(colnames(GSE173955_transcript),
+          samples_metadata)
+GSE173955_transcript <- 
+  GSE173955_transcript[, !(colnames(GSE173955_transcript) %in% missing_cols)]
+
+samples_metadata <- 
+  GSE67333_metadata$sample_id
+missing_cols <- 
+  setdiff(colnames(GSE67333_transcript), 
+          samples_metadata)
+GSE67333_transcript <- 
+  GSE67333_transcript[, !(colnames(GSE67333_transcript) %in% missing_cols)]
+```
+
+```{r}
+# Check if re-arrangement is needed
+all(GSE173955_metadata$sample_id == colnames(GSE173955_transcript))
+
+all(GSE67333_metadata$sample_id == colnames(GSE67333_transcript))
+```
+
+```{r}
+# Factorize conditions and gender
+GSE173955_metadata$conditions <- 
+  factor(GSE173955_metadata$conditions)
+GSE173955_metadata$gender <- 
+  factor(GSE173955_metadata$gender)
+
+GSE67333_metadata$conditions <- 
+  factor(GSE67333_metadata$conditions)
+GSE67333_metadata$gender <- 
+  factor(GSE67333_metadata$gender)
+```
+
+Corrected cofounder: Gender
+
+```{r}
+# Construct DESeqDataSets and print the new objects
+GSE173955_dds <- DESeqDataSetFromMatrix(
+  countData = GSE173955_transcript,
+  colData = GSE173955_metadata,
+  design = ~ conditions + gender)
+
+GSE67333_dds <- DESeqDataSetFromMatrix(
+  countData = GSE67333_transcript,
+  colData = GSE67333_metadata,
+  design = ~ conditions + gender)
+```
+
+## Single PCA plot
+
+```{r}
+plotPCA(rlog(GSE173955_dds),
+        intgroup=c("conditions",
+                   "gender"))
+
+plotPCA(rlog(GSE67333_dds),
+        intgroup=c("conditions", 
+                   "gender"))
+```
+
+## **Differential gene expression analysis**
+
+```{r}
+# DESeq fitting
+GSE173955_dds_model <-
+  DESeq(GSE173955_dds)
+
+GSE67333_dds_model <-
+  DESeq(GSE67333_dds)
+```
+
+```{r}
+GSE173955_results <- 
+  results(GSE173955_dds_model,
+          contrast=c("conditions",
+                     "healthy", 
+                     "diseased"))
+
+GSE67333_results <- 
+  results(GSE67333_dds_model,
+          contrast=c("conditions",
+                     "healthy", 
+                     "diseased"))
+
+# Visualise results
+head(GSE173955_results)
+summary(GSE173955_results)
+
+head(GSE67333_results)
+summary(GSE67333_results)
+```
+
+## Identify significant genes
+
+```{r}
+# Filter: keep only significant padj values
+GSE173955_signif_results <- 
+  GSE173955_results[!is.na(GSE173955_results$padj)
+                    & GSE173955_results$padj < 0.05, ]
+
+GSE67333_signif_results <- 
+  GSE67333_results[!is.na(GSE67333_results$padj)
+                   & GSE67333_results$padj < 0.05, ]
+
+# Sort by adjusted p-value
+GSE173955_signif_results <-
+  GSE173955_signif_results[order(GSE173955_signif_results$padj), ]
+
+GSE67333_signif_results <-
+  GSE67333_signif_results[order(GSE67333_signif_results$padj), ]
+
+# Extract gene IDs
+GSE173955_signif_genes <-
+  rownames(GSE173955_signif_results)
+
+GSE67333_signif_genes <- 
+  rownames(GSE67333_signif_results)
+
+# Count number of significant genes
+GSE173955_n_signif <-
+  nrow(GSE173955_signif_results)
+
+GSE67333_n_signif <-
+  nrow(GSE67333_signif_results)
+
+# Store result as dataframe
+GSE173955_signif_results_df <- 
+  as.data.frame(GSE173955_signif_results)
+
+GSE67333_signif_results_df <- 
+  as.data.frame(GSE67333_signif_results)
+```
+
+## Save results
+
+```{r}
+save(GSE173955_signif_results, 
+     GSE173955_results,
+     file = "/home/projects/exam_2025_22140_22150/group_2/data/GSE173955_deseq_result.Rdata")
+
+save(GSE67333_signif_results, 
+     GSE67333_results,
+     file = "/home/projects/exam_2025_22140_22150/group_2/data/GSE67333_deseq_result.Rdata")
+```
