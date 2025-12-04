@@ -50,9 +50,6 @@ feature_ids <- as.character(rownames(isoforms))
 ```
 
 ```{r}
-
-
-
 isoInfo <- read_rds(
   paste0(
   '/home/projects/22140/exam_data/',
@@ -96,9 +93,9 @@ dxd <- estimateExonFoldChanges(dxd, fitExpToVar = "conditions")
 
 res <- DEXSeqResults(dxd)
 
-`GSE228458,GSE228459_isoform_results` = res
+GSE228458_GSE228459_isoform_results <- res
 
-save(GSE228458,GSE228459_isoform_results, 
+save(GSE228458_GSE228459_isoform_results, 
      file = "/home/projects/exam_2025_22140_22150/group_2/data/GSE228458,GSE228459_isoform_results.Rdata")
 
 ```
