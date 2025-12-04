@@ -133,6 +133,15 @@ full_joined_p_values <- all_p_values |>
   
   
 
+joined_padj <- full_joined_p_values |> 
+  mutate(padj = p.adjust(full_joined_pvalue, method = "fdr")) |> 
+  dplyr::select(gene_ID,padj)
+seed_proteins <- joined_padj |> 
+  filter(padj < 0.05) |> 
+  pull(gene_ID)
+
+save(joined_padj,seed_proteins,
+     file = "/home/projects/exam_2025_22140_22150/group_2/data/joined_p_values.Rdata")
 
 ```
 

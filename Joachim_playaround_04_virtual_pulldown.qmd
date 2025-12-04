@@ -1,7 +1,7 @@
 # Virtual pulldown initialization
 
 ```{r}
-
+#| message: false
 # Libraries needed
 library(igraph)
 library(msigdbr)
@@ -22,22 +22,18 @@ load(file='/home/projects/22140/exercise4.Rdata')
 
 Valid seed inputs are human gene symbols
 
-```{r}
-#EXAMPLE USAGE
-seeds <- c("ALDH1A2", "BMP2", "CXADR", "GATA4", "HAS2", "NF1", "NKX2-5", "PITX2", "PKD2", "RXRA") 
-```
-
 ### Assuming the seeds contain only ensemble ID use this to convert to gene symbols
 
 ```{r}
+#join deseq and isoform p-values
+load(file = "/home/projects/exam_2025_22140_22150/group_2/data/joined_p_values.Rdata")
 
 library(biomaRt)
 
 ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
 
 
-
-ensembl_list <- c("ENSG00000125538", "ENSG00000125845", "ENSG00000139618")  # EXAMPLE change this 
+ensembl_list <- seed_proteins
 
 #list create a matrix matching "ensembl_gene_id" to "hgnc_symbol"
 mapping <- getBM(
@@ -74,7 +70,7 @@ Extract sub-graph (aka virtual pulldown).
 ```{r}
 
 #List of neighboors
-ego_list <- ego(graph = g,order = 1, nodes = V(g)[name %in% seeds], mode = "all")
+ego_list <- ego(graph = g,order = 1, nodes = V(g)[name %in% gene_symbols], mode = "all")
 
 #List -> Vertex
 ego_vertex <- unique(unlist(lapply(ego_list,as_ids)))
@@ -147,15 +143,188 @@ cuts <- 0.2
 filtered <- filter_virtual_pulldown(sub_group, g, cutoff = cuts)
 #Stores the subgraph from the function to the global memory
 
-is_seed <- V(filtered)$name %in% seeds
+is_seed <- V(filtered)$name %in% gene_symbols
 
 V(filtered)$node_type <- ifelse(is_seed, "seed", "neighbor")
 
 ggraph(filtered, layout = 'fr') + 
-  geom_edge_link(width = 0.2) + 
+  geom_edge_link(width = 0.2, alpha = 0.3) + 
   geom_node_point(aes(color = node_type)) +
   theme_void()
 
+```
+
+```{r}
+ggraph(filtered, layout = 'kk') + 
+  geom_edge_link(width = 0.2, alpha = 0.3) + 
+  geom_node_point(aes(color = node_type)) +
+  theme_void()
+```
+
+```{r}
+ggraph(filtered, layout = 'stress') + 
+  geom_edge_link(width = 0.2, alpha = 0.3) + 
+  geom_node_point(aes(color = node_type)) +
+  theme_void()
+```
+
+```{r}
+ data.frame(nodedegree = degree(filtered),
+            seed = V(filtered)$node_type) |> 
+  ggplot(aes(x = nodedegree,
+             color = seed))+
+   geom_density()
+```
+
+```{r}
+data.frame(nodebetweeness = betweenness(filtered),
+            seed = V(filtered)$node_type) |> 
+  ggplot(aes(x = nodebetweeness,
+             color = seed))+
+   geom_density()+
+  ylim(0,5*10^-3)+
+  xlim(0,1500)
+
+
+```
+
+```{r}
+big_between <- betweenness(g)
+
+library(tidyverse)
+seed_bc1 <- big_between |> 
+  as.data.frame() |> 
+  rownames_to_column() |> 
+  filter(rowname %in% gene_symbols) |> 
+  filter(big_between > 1) |> 
+  pull(rowname)
+  
+
+length(gene_symbols)
+
+V(g)$name %in% gene_symbols
+```
+
+```{r}
+
+#List of neighboors
+ego_list <- ego(graph = g,order = 1, nodes = V(g)[name %in% seed_bc1], mode = "all")
+
+#List -> Vertex
+ego_vertex <- unique(unlist(lapply(ego_list,as_ids)))
+
+#Creates a sub graph based on g using neighbooring nodes 
+sub_group <- induced_subgraph(graph = g, vids = V(g)[name %in% ego_vertex])
+#frac_internal >= cutoff in the virtual pulldown
+
+#change of cutoff values
+cuts <- 0.2
+
+
+
+filtered_bc1 <- filter_virtual_pulldown(sub_group, g, cutoff = cuts)
+#Stores the subgraph from the function to the global memory
+
+is_seed <- V(filtered_bc1)$name %in% seed_bc1
+
+V(filtered_bc1)$node_type <- ifelse(is_seed, "seed", "neighbor")
+
+
+ggraph(filtered_bc1, layout = 'fr') + 
+  geom_edge_link(width = 0.2, alpha = 0.3) + 
+  geom_node_point(aes(color = node_type)) +
+  theme_void()
+
+```
+
+```{r}
+cl <- cluster_louvain(filtered_bc1, weights = NULL, resolution = 0.5)
+
+V(filtered_bc1)$louvain <- factor(membership(cl))
+ggraph(filtered_bc1, layout = "fr") +
+  geom_edge_link(alpha = 0.2) +
+  geom_node_point(aes(color = louvain, shape = node_type))
+```
+
+```{r}
+cluster_ids <- c(1,2)
+nodes_to_keep <- which(V(filtered_bc1)$louvain %in% cluster_ids)
+subg <- induced_subgraph(filtered_bc1, vids = nodes_to_keep)
+ggraph(subg, layout = "fr") +
+  geom_edge_link(alpha = 0.2) +
+  geom_node_point(aes(color = louvain, shape = node_type))
+
+```
+
+```{r}
+cluster_ids <- c(9,12)
+nodes_to_keep <- which(!(V(filtered_bc1)$louvain %in% cluster_ids))
+subg <- induced_subgraph(filtered_bc1, vids = nodes_to_keep)
+ggraph(subg, layout = "fr") +
+  geom_edge_link(alpha = 0.2) +
+  geom_node_point(aes(color = louvain, shape = node_type))
+```
+
+```{r}
+
+#detect edges and nodes going between clusters
+filtered_bc1
+
+edge_comms <- apply(ends(g, E(g)), 1, function(x) {
+  V(g)$community[x[1]] != V(g)$community[x[2]]
+})
+
+# Color edges
+E(g)$color <- ifelse(edge_comms, "red", "grey80")
+E(g)$width <- ifelse(edge_comms, 3, 1)
+```
+
+```{r}
+ggraph(filtered_bc1, layout = 'stress') + 
+  geom_edge_link(width = 0.2, alpha = 0.3) + 
+  geom_node_point(aes(color = node_type), size = 0.2) +
+  theme_void()
+```
+
+```{r}
+
+
+
+seed_bc20 <- big_between |> 
+  as.data.frame() |> 
+  rownames_to_column() |> 
+  filter(rowname %in% gene_symbols) |> 
+  filter(big_between > 20) |> 
+  pull(rowname)
+
+  
+#List of neighboors
+ego_list <- ego(graph = g,order = 1, nodes = V(g)[name %in% seed_bc20], mode = "all")
+
+#List -> Vertex
+ego_vertex <- unique(unlist(lapply(ego_list,as_ids)))
+
+#Creates a sub graph based on g using neighbooring nodes 
+sub_group <- induced_subgraph(graph = g, vids = V(g)[name %in% ego_vertex])
+#frac_internal >= cutoff in the virtual pulldown
+
+#change of cutoff values
+cuts <- 0.2
+
+
+
+filtered_bc20 <- filter_virtual_pulldown(sub_group, g, cutoff = cuts)
+#Stores the subgraph from the function to the global memory
+
+is_seed <- V(filtered_bc20)$name %in% seed_bc1
+
+V(filtered_bc20)$node_type <- ifelse(is_seed, "seed", "neighbor")
+
+
+ggraph(filtered_bc20, layout = 'fr') + 
+  geom_edge_link(width = 0.2, alpha = 0.3) + 
+  geom_node_point(aes(color = node_type)) +
+  theme_void()
 ```
 
 ### Functional classification (Cluster_louvain)
