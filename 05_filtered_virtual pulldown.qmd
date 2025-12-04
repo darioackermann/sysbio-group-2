@@ -168,7 +168,8 @@ df |>
 ```{r}
 seeds <- df |> 
   filter(rowname %in% gene_symbols) |> 
-  filter( big_between > 59153.16) |> 
+  arrange(desc(big_between)) |> 
+  slice_head(n = 10) |> 
   pull(rowname)
 
 #List of neighboors
@@ -211,15 +212,122 @@ cl <- cluster_louvain(filtered, weights = NULL, resolution = 0.7)
 V(filtered)$louvain <- factor(membership(cl))
 
 
-ggraph(filtered, layout = 'stress') + 
-  geom_edge_link(alpha = 0.3, width = 0.2) +
-  geom_node_point(aes(color = louvain, shape = node_type)) +
-  theme_void()
+#ggraph(filtered, layout = 'stress') + 
+#  geom_edge_link(alpha = 0.3, width = 0.2) +
+#  geom_node_point(aes(color = louvain, shape = node_type)) +
+#  theme_void()
 #ggsave("04_bc50000.png", dpi = 500)
+
+ggraph(filtered, layout = 'stress') + 
+  geom_edge_link(aes(width = edge_between, alpha = edge_between, color = edge_between)) +
+  geom_node_point(aes(shape = node_type, size = between, color = louvain)) +
+  theme_void()
 ```
 
 ```{r}
 cluster_ids <- c(1)
+nodes_to_keep <- which(V(filtered)$louvain %in% cluster_ids)
+subg <- induced_subgraph(filtered, vids = nodes_to_keep)
+
+# Copy vertex attributes by name
+V(subg)$between   <- V(filtered)$between[ match(V(subg)$name, V(filtered)$name) ]
+V(subg)$node_type <- V(filtered)$node_type[ match(V(subg)$name, V(filtered)$name) ]
+
+sub_edges <- ends(subg, E(subg), names = TRUE)
+filt_edges <- ends(filtered, E(filtered), names = TRUE)
+
+# Create an edge key like "A|B"
+edge_key_sub  <- paste(sub_edges[,1],  sub_edges[,2],  sep="|")
+edge_key_filt <- paste(filt_edges[,1], filt_edges[,2], sep="|")
+
+# Match to filtered edges
+idx <- match(edge_key_sub, edge_key_filt)
+
+# Copy attribute
+E(subg)$edge_between <- E(filtered)$edge_between[idx]
+
+ggraph(subg, layout = 'stress') + 
+  geom_edge_link(aes(width = edge_between, alpha = edge_between, color = edge_between)) +
+  geom_node_point(aes(shape = node_type, size = between, color = node_type)) +
+  theme_void()
+```
+
+```{r}
+cluster_ids <- c(2)
+nodes_to_keep <- which(V(filtered)$louvain %in% cluster_ids)
+subg <- induced_subgraph(filtered, vids = nodes_to_keep)
+
+V(subg)$between <- V(filtered)$between[  V(subg)]
+V(subg)$node_type <- V(filtered)$node_type[  V(subg)]
+E(subg)$edge_between <- E(filtered)$edge_between[  E(subg)]
+
+ggraph(subg, layout = 'stress') + 
+  geom_edge_link(aes(width = edge_between, alpha = edge_between, color = edge_between)) +
+  geom_node_point(aes(shape = node_type, size = between, color = node_type)) +
+  theme_void()
+```
+
+```{r}
+cluster_ids <- c(3)
+nodes_to_keep <- which(V(filtered)$louvain %in% cluster_ids)
+subg <- induced_subgraph(filtered, vids = nodes_to_keep)
+
+V(subg)$between <- V(filtered)$between[  V(subg)]
+V(subg)$node_type <- V(filtered)$node_type[  V(subg)]
+E(subg)$edge_between <- E(filtered)$edge_between[  E(subg)]
+
+ggraph(subg, layout = 'stress') + 
+  geom_edge_link(aes(width = edge_between, alpha = edge_between, color = edge_between)) +
+  geom_node_point(aes(shape = node_type, size = between, color = node_type)) +
+  theme_void()
+```
+
+```{r}
+cluster_ids <- c(4)
+nodes_to_keep <- which(V(filtered)$louvain %in% cluster_ids)
+subg <- induced_subgraph(filtered, vids = nodes_to_keep)
+
+# Copy vertex attributes by name
+V(subg)$between   <- V(filtered)$between[ match(V(subg)$name, V(filtered)$name) ]
+V(subg)$node_type <- V(filtered)$node_type[ match(V(subg)$name, V(filtered)$name) ]
+
+sub_edges <- ends(subg, E(subg), names = TRUE)
+filt_edges <- ends(filtered, E(filtered), names = TRUE)
+
+# Create an edge key like "A|B"
+edge_key_sub  <- paste(sub_edges[,1],  sub_edges[,2],  sep="|")
+edge_key_filt <- paste(filt_edges[,1], filt_edges[,2], sep="|")
+
+# Match to filtered edges
+idx <- match(edge_key_sub, edge_key_filt)
+
+# Copy attribute
+E(subg)$edge_between <- E(filtered)$edge_between[idx]
+
+
+ggraph(subg, layout = 'stress') + 
+  geom_edge_link(aes(width = edge_between, alpha = edge_between, color = edge_between)) +
+  geom_node_point(aes(shape = node_type, size = between, color = node_type)) +
+  theme_void()
+```
+
+```{r}
+cluster_ids <- c(5)
+nodes_to_keep <- which(V(filtered)$louvain %in% cluster_ids)
+subg <- induced_subgraph(filtered, vids = nodes_to_keep)
+
+V(subg)$between <- V(filtered)$between[  V(subg)]
+V(subg)$node_type <- V(filtered)$node_type[  V(subg)]
+E(subg)$edge_between <- E(filtered)$edge_between[  E(subg)]
+
+ggraph(subg, layout = 'stress') + 
+  geom_edge_link(aes(width = edge_between, alpha = edge_between, color = edge_between)) +
+  geom_node_point(aes(shape = node_type, size = between, color = node_type)) +
+  theme_void()
+```
+
+```{r}
+cluster_ids <- c(2)
 nodes_to_keep <- which(V(filtered)$louvain %in% cluster_ids)
 subg <- induced_subgraph(filtered, vids = nodes_to_keep)
 ggraph(subg, layout = "fr") +
@@ -270,4 +378,8 @@ is_seed <- V(sub_group)$name %in% seeds
 ggraph(sub_group, layout = "fr") +
   geom_edge_link(alpha = 0.2) +
   geom_node_point(aes(color = node_type, shape = node_type))
+```
+
+```{r}
+seeds
 ```

@@ -317,6 +317,7 @@ seed50000 <- big_between |>
   arrange(desc(big_between))|> 
   pull(rowname)
 
+seed50000
 
 #List of neighboors
 ego_list <- ego(graph = g,order = 1, nodes = V(g)[name %in% seed50000], mode = "all")
