@@ -38,6 +38,7 @@ load("/home/projects/exam_2025_22140_22150/group_2/data/GSE53697,GSE53699_deseq_
 
 ```{r}
 library(purrr)
+library(metap)
 ```
 
 ## combinding p-values for same studies and same tissue
@@ -238,4 +239,46 @@ full_joined_p_values_additional_edgington <- all_p_values_additional |>
 full_joined_p_values_additional |> 
   mutate(p_adj = p.adjust(full_joined_pvalue, method = "fdr")) |> 
   filter(p_adj < 0.05)
+```
+
+# making venn diagram
+
+```{r}
+
+GSE173955_results |> 
+  as.data.frame() |> 
+    dplyr::select(pvalue) |> 
+    rownames_to_column(var = "gene_ID")
+
+
+  GSE67333_results |> 
+  as.data.frame() |> 
+
+
+GSE67333_isoform_results |> 
+  as.data.frame() |> 
+  na.omit() |>  
+  dplyr::select(pvalue) |> 
+  rownames_to_column(var = "gene_ID"),
+
+  GSE173955_isoform_results |> 
+  as.data.frame() |> 
+  na.omit() |>  
+  dplyr::select(pvalue) |> 
+
+
+
+
+library(ggvenn)
+
+# Prepare list of sets
+venn_list <- list(
+  "Differential Expression" = set1,
+  "Isoform Splicing" = set2
+)
+
+# Plot
+ggvenn(venn_list, 
+       fill_color = c("#0073C2FF", "#EFC000FF"),
+       stroke_size = 0.5, set_name_size = 4)
 ```

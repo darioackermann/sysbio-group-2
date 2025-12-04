@@ -1,0 +1,273 @@
+---
+title: "05_filtered_virtual_pulldown"
+format: html
+---
+
+## 
+
+```{r}
+#| message: false
+# Libraries needed
+library(igraph)
+library(msigdbr)
+library(fgsea)
+library(ggraph)
+library(tidyverse)
+```
+
+```{r}
+load(file='/home/projects/22140/exercise4.Rdata')
+```
+
+```{r}
+#join deseq and isoform p-values
+load(file = "/home/projects/exam_2025_22140_22150/group_2/data/joined_p_values.Rdata")
+
+library(biomaRt)
+
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+
+
+ensembl_list <- seed_proteins
+
+#list create a matrix matching "ensembl_gene_id" to "hgnc_symbol"
+mapping <- getBM(
+  attributes = c("ensembl_gene_id", "hgnc_symbol"),
+  filters = "ensembl_gene_id",
+  values = ensembl_list,
+  mart = ensembl
+)
+
+gene_symbols <- mapping$hgnc_symbol
+
+
+
+```
+
+```{r}
+#Change confidence score. Exercise used >= 0.2. Lower value gives more hit, but more noise.
+
+confidence_score <- 0.2
+
+Sorted_inWeb <- inWeb[inWeb$inweb_cs >= confidence_score, ]
+
+g <- graph_from_data_frame(Sorted_inWeb, directed=FALSE)
+
+length(g)
+```
+
+```{r}
+filter_virtual_pulldown <- function(subGraph, parentGraph, cutoff) {
+  # Ensure both graphs have vertex 'name' attributes for node matching
+  if (is.null(V(subGraph)$name) || is.null(V(parentGraph)$name))
+    stop("Both graphs must have vertex 'name' attributes.")
+  
+  
+  mode <- "all"
+  # Consider all edge directions when calculating degree
+  
+  vn <- V(subGraph)$name
+  # Extract vertex names from the subgraph
+  
+  deg_full     <- degree(parentGraph, v = vn, mode = mode)
+  deg_internal <- degree(subGraph,            mode = mode)
+  # Compute degrees in the parent graph and subgraph
+  
+  res <- data.frame(
+    node          = vn,
+    deg_internal  = deg_internal,
+    deg_full      = deg_full,
+    frac_internal = ifelse(deg_full > 0, deg_internal / deg_full, NA_real_),
+    stringsAsFactors = FALSE
+  )
+  # Create a summary table with internal and full degrees, and their ratio
+  
+  #nodes_to_keep <- res$node[!is.na(res$frac_internal) & res$frac_internal >= cutoff]    => Original code
+  
+  nodes_to_keep <- res$node[!is.na(res$frac_internal) & res$frac_internal >= cutoff]
+  
+  # Select nodes where the fraction of internal connections meets or exceeds the cutoff
+  
+  filteredSubGraph <- induced_subgraph(subGraph, vids = V(subGraph)[name %in% nodes_to_keep])
+  # Generate a new subgraph containing only the selected nodes
+  
+  V(filteredSubGraph)$frac_internal <- res$frac_internal[match(V(filteredSubGraph)$name, res$node)]
+  # Annotate the filtered subgraph with the internal fraction values
+  
+  filteredSubGraph
+}
+
+```
+
+```{r}
+big_between <- betweenness(g)
+big_degree <- degree(g)
+```
+
+```{r}
+df <- full_join(
+  big_between |> 
+    as.data.frame() |> 
+    rownames_to_column(),
+  big_degree |> 
+    as.data.frame() |> 
+    rownames_to_column(),
+  by = "rowname")
+```
+
+```{r}
+df |> 
+  filter(rowname %in% gene_symbols) |> 
+  filter(big_between > 50000) 
+```
+
+```{r}
+df |> 
+  filter(rowname %in% gene_symbols) |> 
+  ggplot()+
+  geom_density(aes(x = big_between))+
+  geom_density(aes(x = big_degree))+
+  scale_x_continuous(trans='log10')
+```
+
+```{r}
+df |> 
+  filter(rowname %in% gene_symbols) |> 
+  mutate(above = ifelse(big_between > 12524, "select", "no")) |> 
+  ggplot()+
+  geom_histogram(aes(x = big_between, fill = above))               
+  
+
+df |> 
+  filter(rowname %in% gene_symbols) |> 
+  filter(big_between > 50000 )
+```
+
+```{r}
+df |> 
+  filter(rowname %in% gene_symbols) |> 
+  mutate(above = ifelse(big_degree > 70, "select", "no")) |> 
+  ggplot()+
+  geom_histogram(aes(x = big_degree, fill = above))               
+  
+```
+
+```{r}
+
+min(sort(big_between, decreasing=TRUE)[1:(length(big_between)*3/100)])
+min(sort(big_degree, decreasing=TRUE)[1:(length(big_degree)*1/100)])
+```
+
+```{r}
+df |> 
+  filter(rowname %in% gene_symbols) |> 
+  filter( big_between > 59153.16) |> 
+  pull(rowname)
+```
+
+```{r}
+seeds <- df |> 
+  filter(rowname %in% gene_symbols) |> 
+  filter( big_between > 59153.16) |> 
+  pull(rowname)
+
+#List of neighboors
+ego_list <- ego(graph = g,order = 1, nodes = V(g)[name %in% seeds], mode = "all")
+
+#List -> Vertex
+ego_vertex <- unique(unlist(lapply(ego_list,as_ids)))
+
+#Creates a sub graph based on g using neighbooring nodes 
+sub_group <- induced_subgraph(graph = g, vids = V(g)[name %in% ego_vertex])
+#frac_internal >= cutoff in the virtual pulldown
+
+#change of cutoff values
+cuts <- 0.2
+
+
+
+filtered <- filter_virtual_pulldown(sub_group, g, cutoff = cuts)
+#Stores the subgraph from the function to the global memory
+
+is_seed <- V(filtered)$name %in% seeds
+
+V(filtered)$node_type <- ifelse(is_seed, "seed", "neighbor")
+V(filtered)$between <- betweenness(filtered, directed = F)
+E(filtered)$edge_between <- edge_betweenness(filtered, directed = F)
+#V(filtered)$between <- betweenness(filtered_50000, directed = F)
+#E(filtered_50000)$edge_between <- edge_betweenness(filtered_50000, directed = F)
+
+
+
+ggraph(filtered, layout = 'stress') + 
+  geom_edge_link(aes(width = edge_between, alpha = edge_between, color = edge_between)) +
+  geom_node_point(aes(color = node_type, size = between)) +
+  theme_void()
+```
+
+```{r}
+cl <- cluster_louvain(filtered, weights = NULL, resolution = 0.7)
+
+V(filtered)$louvain <- factor(membership(cl))
+
+
+ggraph(filtered, layout = 'stress') + 
+  geom_edge_link(alpha = 0.3, width = 0.2) +
+  geom_node_point(aes(color = louvain, shape = node_type)) +
+  theme_void()
+#ggsave("04_bc50000.png", dpi = 500)
+```
+
+```{r}
+cluster_ids <- c(1)
+nodes_to_keep <- which(V(filtered)$louvain %in% cluster_ids)
+subg <- induced_subgraph(filtered, vids = nodes_to_keep)
+ggraph(subg, layout = "fr") +
+  geom_edge_link(alpha = 0.2) +
+  geom_node_point(aes(color = node_type, shape = node_type))
+```
+
+```{r}
+seed_ego <- ego(graph = filtered ,order = 1, nodes = V(filtered)[louvain == 5], mode = "all")
+ego_vertex <- unique(unlist(lapply(seed_ego,as_ids)))
+
+#Creates a sub graph based on g using neighbooring nodes 
+sub_group <- induced_subgraph(graph = filtered, vids = V(filtered)[name %in% ego_vertex])
+
+is_seed <- V(sub_group)$name %in% seeds
+
+ggraph(sub_group, layout = "fr") +
+  geom_edge_link(alpha = 0.2) +
+  geom_node_point(aes(color = node_type, shape = node_type))
+```
+
+```{r}
+cluster_ids <- c(5)
+nodes_to_keep <- which(V(filtered)$louvain %in% cluster_ids)
+subg <- induced_subgraph(filtered, vids = nodes_to_keep)
+ggraph(subg, layout = "stress") +
+  geom_edge_link(alpha = 0.2) +
+  geom_node_point(aes(color = node_type, shape = node_type))
+```
+
+```{r}
+subg$data$layout_weight <- ifelse(subg$data$node_type == "seed", 5, 1)
+
+ggraph(subg, layout = "stress", weights = subg$data$layout_weight) +
+  geom_edge_link(alpha = 0.2) +
+  geom_node_point(aes(color = node_type, shape = node_type))
+```
+
+```{r}
+seed_ego <- ego(graph = filtered ,order = 1, nodes = V(filtered)[louvain == 5], mode = "all")
+ego_vertex <- unique(unlist(lapply(seed_ego,as_ids)))
+
+#Creates a sub graph based on g using neighbooring nodes 
+sub_group <- induced_subgraph(graph = filtered, vids = V(filtered)[name %in% ego_vertex])
+
+is_seed <- V(sub_group)$name %in% seeds
+
+ggraph(sub_group, layout = "fr") +
+  geom_edge_link(alpha = 0.2) +
+  geom_node_point(aes(color = node_type, shape = node_type))
+```

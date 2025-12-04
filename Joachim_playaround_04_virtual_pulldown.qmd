@@ -181,8 +181,8 @@ data.frame(nodebetweeness = betweenness(filtered),
             seed = V(filtered)$node_type) |> 
   ggplot(aes(x = nodebetweeness,
              color = seed))+
-   geom_density()+
-  ylim(0,5*10^-3)+
+   geom_histogram()+
+  ylim(0,10)+#5*10^-3
   xlim(0,1500)
 
 
@@ -262,6 +262,170 @@ nodes_to_keep <- which(!(V(filtered_bc1)$louvain %in% cluster_ids))
 subg <- induced_subgraph(filtered_bc1, vids = nodes_to_keep)
 ggraph(subg, layout = "fr") +
   geom_edge_link(alpha = 0.2) +
+  geom_node_point(aes(color = louvain, shape = node_type))
+```
+
+```{r}
+cluster_ids <- c(9,12)
+nodes_to_keep <- which(!(V(filtered_bc1)$louvain %in% cluster_ids))
+subg <- induced_subgraph(filtered_bc1, vids = nodes_to_keep)
+V(subg)$between <- betweenness(subg)
+ggraph(subg, layout = "stress") +
+  geom_edge_link(alpha = 0.2) +
+  geom_node_point(aes(color = louvain, shape = node_type, size = between))
+```
+
+```{r}
+crossing()
+
+
+```
+
+```{r}
+cluster_ids <- c(1,2)
+nodes_to_keep <- which(V(filtered_bc1)$louvain %in% cluster_ids)
+subg <- induced_subgraph(filtered_bc1, vids = nodes_to_keep)
+E(subg)$edge_between <- edge_betweenness(subg, directed = F)
+
+ggraph(subg, layout = "stress") +
+  geom_edge_link(aes(width = edge_between, alpha = edge_between, color = edge_between)) +
+  geom_edge_density(aes(fill = edge_between))+
+  geom_node_point(aes(color = louvain, shape = node_type))
+```
+
+```{r}
+subgraph.edges(g, E(g)[E(g)$weight>2], del=F)
+
+cluster_ids <- c(1,2)
+nodes_to_keep <- which(V(filtered_bc1)$louvain %in% cluster_ids)
+subg <- induced_subgraph(filtered_bc1, vids = nodes_to_keep)
+E(subg)$edge_between <- edge_betweenness(subg, directed = F)
+
+ggraph(subg, layout = "stress") +
+  geom_edge_link(aes(width = edge_between, alpha = edge_between, color = edge_between)) +
+  geom_edge_density(aes(fill = edge_between))+
+  geom_node_point(aes(color = louvain, shape = node_type))
+```
+
+```{r}
+
+seed50000 <- big_between |> 
+  as.data.frame() |> 
+  rownames_to_column() |> 
+  filter(rowname %in% gene_symbols) |> 
+  filter(big_between > 50000) |> 
+  arrange(desc(big_between))|> 
+  pull(rowname)
+
+
+#List of neighboors
+ego_list <- ego(graph = g,order = 1, nodes = V(g)[name %in% seed50000], mode = "all")
+
+#List -> Vertex
+ego_vertex <- unique(unlist(lapply(ego_list,as_ids)))
+
+#Creates a sub graph based on g using neighbooring nodes 
+sub_group <- induced_subgraph(graph = g, vids = V(g)[name %in% ego_vertex])
+#frac_internal >= cutoff in the virtual pulldown
+
+#change of cutoff values
+cuts <- 0.2
+
+
+
+filtered_50000 <- filter_virtual_pulldown(sub_group, g, cutoff = cuts)
+#Stores the subgraph from the function to the global memory
+
+is_seed <- V(filtered_50000)$name %in% seed50000
+
+V(filtered_50000)$node_type <- ifelse(is_seed, "seed", "neighbor")
+V(filtered_50000)$between <- betweenness(filtered_50000, directed = F)
+E(filtered_50000)$edge_between <- edge_betweenness(filtered_50000, directed = F)
+
+ggraph(filtered_50000, layout = 'stress') + 
+  geom_edge_link(width = 0.2, alpha = 0.3) + 
+  geom_node_point(aes(color = node_type)) +
+  theme_void()
+```
+
+```{r}
+ggraph(filtered_50000, layout = 'stress') + 
+  geom_edge_link(aes(width = edge_between, alpha = edge_between, color = edge_between)) +
+  geom_node_point(aes(color = node_type, size = between)) +
+  theme_void()
+```
+
+```{r}
+seed_ego <- ego(graph = g,order = 1, nodes = V(g)[name %in% seed50000[1]], mode = "all")
+#List -> Vertex
+ego_vertex <- unique(unlist(lapply(seed_ego,as_ids)))
+
+#Creates a sub graph based on g using neighbooring nodes 
+sub_group <- induced_subgraph(graph = g, vids = V(g)[name %in% ego_vertex])
+
+is_seed <- V(sub_group)$name %in% seed50000
+
+V(sub_group)$node_type <- ifelse(is_seed, "seed", "neighbor")
+V(sub_group)$between <- betweenness(sub_group, directed = F)
+E(sub_group)$edge_between <- edge_betweenness(sub_group, directed = F)
+
+ggraph(sub_group, layout = 'fr') + 
+  geom_edge_link(aes(width = edge_between, alpha = edge_between, color = edge_between)) +
+  #geom_edge_link(alpha = 0.2)+
+  geom_node_point(aes(color = node_type, size = between)) +
+  theme_void()
+```
+
+```{r}
+cl <- cluster_louvain(filtered_50000, weights = NULL, resolution = 0.7)
+
+V(filtered_50000)$louvain <- factor(membership(cl))
+
+
+ggraph(filtered_50000, layout = 'stress') + 
+  geom_edge_link(aes(width = edge_between, alpha = edge_between, color = edge_between)) +
+  geom_node_point(aes(color = louvain, size = between, shape = node_type)) +
+  theme_void()
+ggsave("04_bc50000.png", dpi = 500)
+```
+
+```{r}
+
+cluster_ids <- c(5)
+nodes_to_keep <- which(V(filtered_50000)$louvain %in% cluster_ids)
+subg <- induced_subgraph(filtered_50000, vids = nodes_to_keep)
+ggraph(subg, layout = "fr") +
+  geom_edge_link(alpha = 0.2) +
+  geom_node_point(aes(color = node_type, shape = node_type))
+```
+
+```{r}
+seed_ego <- ego(graph = filtered_50000,order = 1, nodes = V(filtered_50000)[louvain == 5], mode = "all")
+ego_vertex <- unique(unlist(lapply(seed_ego,as_ids)))
+
+#Creates a sub graph based on g using neighbooring nodes 
+sub_group <- induced_subgraph(graph = filtered_50000, vids = V(filtered_50000)[name %in% ego_vertex])
+
+is_seed <- V(sub_group)$name %in% seed50000
+
+V(sub_group)$node_type <- ifelse(is_seed, "seed", "neighbor")
+V(sub_group)$between <- V(filtered_50000)$between[  V(sub_group)]
+E(sub_group)$edge_between <- E(filtered_50000)$edge_between[  E(sub_group)]
+
+#V(sub_group)$louvain <- V(filtered_50000)[  V(sub_group)]$louvain
+V(sub_group)$louvain5 <- ifelse(V(sub_group)$louvain == 5,"5", "not 5")
+
+ggraph(sub_group, layout = "fr") +
+  geom_edge_link(alpha = 0.2, aes(width = edge_between)) +
+  geom_node_point(aes(color = louvain5, shape = node_type, size = between))
+
+
+```
+
+```{r}
+ggraph(subg, layout = "stress") +
+  
+  geom_edge_density(aes(fill = edge_between))+
   geom_node_point(aes(color = louvain, shape = node_type))
 ```
 
